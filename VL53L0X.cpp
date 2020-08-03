@@ -864,6 +864,65 @@ uint16_t VL53L0X::readRangeSingleMillimeters(void)
   return readRangeContinuousMillimeters();
 }
 
+// Starts a single-shot range measurement and returns try=ue
+// we should maybe check to see if we are already running one 
+// based on VL53L0X_PerformSingleRangingMeasurement()
+bool VL53L0X::startRange(void)
+{
+
+  writeReg(0x80, 0x01);
+  writeReg(0xFF, 0x01);
+  writeReg(0x00, 0x00);
+  writeReg(0x91, stop_variable);
+  writeReg(0x00, 0x01);
+  writeReg(0xFF, 0x00);
+  writeReg(0x80, 0x00);
+
+  writeReg(SYSRANGE_START, 0x01);
+
+  // Start the timeout
+  startTimeout();
+  return true;
+}
+
+// Checks to see if a range has completed.
+// returns true if yes (or timeout) 
+// return false if not
+bool VL53L0X::isRangeComplete(void)
+{
+  if (readReg(SYSRANGE_START) & 0x01)
+  {
+    return true;
+  }
+  if (checkTimeoutExpired())
+  {
+    did_timeout = true;
+    return true;
+  }
+  return false;
+}
+
+// wait for a range to complete or timeout
+// returns true if complete
+// return false if timeout
+bool VL53L0X::waitRangeComplete(void)
+{
+  while (readReg(SYSRANGE_START) & 0x01)
+  {
+    if (checkTimeoutExpired())
+    {
+      did_timeout = true;
+      return false;
+    }
+  }
+  return true;
+}
+
+uint16_t VL53L0X::readRangeResult(void)
+{
+  return readRangeContinuousMillimeters();
+}
+
 // Did a timeout occur in one of the read functions since the last call to
 // timeoutOccurred()?
 bool VL53L0X::timeoutOccurred()
